@@ -1,0 +1,4 @@
+<resources>
+    <style name="Theme.NutriScan.Light" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    </style>
+</resources>
