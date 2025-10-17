@@ -23,9 +23,11 @@ class HistoryFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
+        // Inisialisasi View Binding dan SharedPref
         _b = FragmentHistoryBinding.inflate(inflater, container, false)
         pref = SharedPref(requireContext())
 
+        // Set tampilan awal untuk goal kalori dan daftar makanan
         setupCaloriesGoal()
         setupRecyclerView()
 
@@ -48,8 +50,10 @@ class HistoryFragment : Fragment() {
             Food("Avocado Salad", "Avocado Salad segar dan sehat, terdiri dari potongan alpukat matang, sayuran hijau, dan dressing ringan. Cocok untuk menu sarapan, makan siang, atau camilan sehat yang kaya lemak sehat dan menyegarkan.", 250, 15.0, 7.0, 20.0, R.drawable.avocado_salad)
         )
 
+        // Mengatur RecyclerView untuk menampilkan daftar makanan
         b.rvHistory.layoutManager = LinearLayoutManager(requireContext())
         b.rvHistory.adapter = FoodAdapter(fullFoodList) { food ->
+            // Aksi ketika item diklik → membuka halaman detail makanan
             val i = android.content.Intent(requireContext(), FoodDetailActivity::class.java)
             i.putExtra("food_name", food.name)
             i.putExtra("food_desc", food.description)
@@ -63,6 +67,7 @@ class HistoryFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        // Membersihkan binding agar tidak terjadi memory leak
         super.onDestroyView()
         _b = null
     }

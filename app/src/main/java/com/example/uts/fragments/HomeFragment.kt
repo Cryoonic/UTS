@@ -28,9 +28,11 @@ class HomeFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
+        // Inisialisasi View Binding dan Shared Preferences
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         pref = SharedPref(requireContext())
 
+        // Setup tampilan awal
         setupGreeting()
         setupRecyclerView()
         setupSearchBar()
@@ -39,6 +41,7 @@ class HomeFragment : Fragment() {
     }
 
     private fun setupGreeting(){
+        // Menampilkan sapaan berdasarkan waktu dan nama pengguna
         val user = pref.getUser()
         val username = user?.username ?: "User"
         val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
@@ -52,6 +55,7 @@ class HomeFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
+        // data dummy
         fullFoodList = listOf(
             Food("Nasi Goreng", "Nasi goreng klasik Indonesia yang dimasak dengan bumbu tradisional, potongan sayuran, dan telur atau daging pilihan. Gurih dan kaya rasa, sempurna untuk sarapan, makan siang, maupun makan malam. ", 450, 65.0, 12.5, 15.0, R.drawable.nasi_goreng),
             Food("Katsu Don", "Hidangan Jepang yang lezat, terdiri dari nasi hangat disajikan dengan daging ayam atau babi goreng tepung renyah, telur setengah matang, dan saus khas yang gurih. Pas untuk makan siang atau malam yang memuaskan.", 600, 75.0, 30.0, 25.0, R.drawable.katsu_don),
@@ -59,6 +63,7 @@ class HomeFragment : Fragment() {
             Food("Avocado Salad", "Avocado Salad segar dan sehat, terdiri dari potongan alpukat matang, sayuran hijau, dan dressing ringan. Cocok untuk menu sarapan, makan siang, atau camilan sehat yang kaya lemak sehat dan menyegarkan.", 250, 15.0, 7.0, 20.0, R.drawable.avocado_salad)
         )
 
+        // Menginisialisasi adapter dan aksi klik untuk membuka detail makanan
         foodGridAdapter = FoodGridAdapter(fullFoodList) { food ->
             val intent = Intent(requireContext(), FoodDetailActivity::class.java)
             intent.putExtra("food_name", food.name)
@@ -71,6 +76,7 @@ class HomeFragment : Fragment() {
             startActivity(intent)
         }
 
+        // Mengatur tampilan RecyclerView dalam bentuk grid (2 kolom)
         binding.recyclerFood.apply {
             layoutManager = GridLayoutManager(requireContext(), 2)
             adapter = foodGridAdapter
@@ -78,12 +84,14 @@ class HomeFragment : Fragment() {
     }
 
     private fun setupSearchBar(){
+        // Menambahkan listener pada kolom pencarian untuk memfilter daftar makanan
         binding.etSearch.addTextChangedListener(object : TextWatcher{
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun afterTextChanged(s: Editable?) {}
 
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                val query = s.toString().trim().lowercase(Locale.ROOT)
+                // Filter daftar makanan berdasarkan nama yang cocok dengan input
                 val filteredList = if (query.isEmpty()){
                     fullFoodList
                 } else{
@@ -98,6 +106,7 @@ class HomeFragment : Fragment() {
 
 
     override fun onDestroyView() {
+        // Hapus binding untuk mencegah memory leak
         super.onDestroyView()
         _binding = null
     }

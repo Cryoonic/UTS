@@ -38,7 +38,7 @@ fun showCustomToast(context: Context, message: String, type: ToastType = ToastTy
 
 
     val fadeOut = AlphaAnimation(1f, 0f).apply {
-        startOffset = 1800 // delay sebelum fade out
+        startOffset = 1800
         duration = 400
         fillAfter = true
     }

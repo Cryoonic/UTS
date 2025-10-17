@@ -25,7 +25,6 @@ class ScanFragment : Fragment() {
     private var _binding: FragmentScanBinding? = null
     private val b get() = _binding!!
 
-    // ✅ Permission launcher
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -36,7 +35,6 @@ class ScanFragment : Fragment() {
         }
     }
 
-    // ✅ Camera launcher
     private val cameraLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -53,7 +51,6 @@ class ScanFragment : Fragment() {
     ): View {
         _binding = FragmentScanBinding.inflate(inflater, container, false)
 
-        // 🔘 Satu tombol saja untuk ambil foto
         b.btnCapture.setOnClickListener {
             checkCameraPermissionAndOpen()
         }
@@ -61,7 +58,6 @@ class ScanFragment : Fragment() {
         return b.root
     }
 
-    // 🔒 Cek izin kamera sebelum buka kamera
     private fun checkCameraPermissionAndOpen() {
         when {
             ContextCompat.checkSelfPermission(
@@ -81,13 +77,11 @@ class ScanFragment : Fragment() {
         }
     }
 
-    // 📸 Fungsi buka kamera (gabungan final)
     private fun openCamera() {
         val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
         cameraLauncher.launch(intent)
     }
 
-    // ⚠️ Jika user menolak izin sebelumnya
     private fun showPermissionWarning() {
         AlertDialog.Builder(requireContext())
             .setTitle("Izin Kamera Diperlukan")
@@ -99,7 +93,6 @@ class ScanFragment : Fragment() {
             .show()
     }
 
-    // 🚫 Jika izin ditolak permanen
     private fun showDeniedDialog() {
         AlertDialog.Builder(requireContext())
             .setTitle("Izin Ditolak")
@@ -115,7 +108,6 @@ class ScanFragment : Fragment() {
             .show()
     }
 
-    // 🍱 Dummy hasil prediksi
     private fun showDummyPrediction() {
         val calories = Random.nextInt(200, 800)
         val carbs = Random.nextInt(20, 100)

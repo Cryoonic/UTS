@@ -20,6 +20,7 @@ class ProfileFragment : Fragment() {
     private val b get() = _binding!!
     private lateinit var pref: SharedPref
 
+    // Variabel dummy untuk statistik dan target pengguna
     private var foodScans = 12
     private var daysActive = 5
     private var caloriesGoal = 2000
@@ -31,9 +32,11 @@ class ProfileFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
+        // Inisialisasi View Binding dan SharedPref
         _binding = FragmentProfileBinding.inflate(inflater, container, false)
         pref = SharedPref(requireContext())
 
+        // Memanggil fungsi setup utama
         loadUserData()
         setupStatsAndGoals()
         setupSettings()
@@ -44,6 +47,7 @@ class ProfileFragment : Fragment() {
     }
 
     private fun loadUserData() {
+        // Menampilkan data pengguna yang tersimpan di SharedPref
         val user = pref.getUser()
         b.tvUsername.text = user?.username ?: "Guest"
         b.etUsername.setText(user?.username ?: "")
@@ -51,7 +55,7 @@ class ProfileFragment : Fragment() {
     }
 
     private fun setupStatsAndGoals() {
-
+        // Menampilkan data statistik dan target pengguna (dummy data)
         b.tvFoodScans.text = "Scans: $foodScans"
         b.tvDaysActive.text = "Days Active: $daysActive"
         b.tvCaloriesGoal.text = "$caloriesGoal kcal"
@@ -60,21 +64,24 @@ class ProfileFragment : Fragment() {
     }
 
     private fun setupSettings() {
+        // Menyimpan perubahan profil dan password pengguna
         b.btnSaveSettings.setOnClickListener {
             val username = b.etUsername.text.toString().trim()
             val email = b.etEmail.text.toString().trim()
             val password = b.etPassword.text.toString().trim()
 
+            // Validasi input wajib
             if (username.isEmpty() || email.isEmpty()) {
                 showCustomToast(requireContext(),"Isi semua field", ToastType.INFO)
                 return@setOnClickListener
             }
 
-
+            // Simpan data baru ke SharedPref
             val oldUser = pref.getUser()
             val newUser = User(username, email)
             pref.saveUser(newUser)
 
+            // Simpan password baru jika diisi
             if (password.isNotEmpty()) {
                 val editor = requireContext().getSharedPreferences("nutriscan_prefs", 0).edit()
                 editor.putString("registered_user_password", password)
@@ -86,6 +93,7 @@ class ProfileFragment : Fragment() {
     }
 
     private fun setupLogout() {
+        // Tombol untuk keluar dari akun
         b.btnLogout.setOnClickListener {
             pref.logout()
             startActivity(Intent(requireContext(), LoginActivity::class.java))
@@ -94,6 +102,7 @@ class ProfileFragment : Fragment() {
     }
 
     private fun setupDeleteAccount() {
+        // Tombol untuk menghapus akun dengan konfirmasi dialog
         b.btnDeleteAccount.setOnClickListener {
             androidx.appcompat.app.AlertDialog.Builder(requireContext())
                 .setTitle("Hapus Akun")
@@ -110,11 +119,13 @@ class ProfileFragment : Fragment() {
     }
 
     override fun onResume() {
+        // Memperbarui data profil ketika fragment aktif kembali
         super.onResume()
         loadUserData()
     }
 
     override fun onDestroyView() {
+        // Membersihkan binding untuk mencegah memory leak
         super.onDestroyView()
         _binding = null
     }
