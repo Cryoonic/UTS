@@ -7,6 +7,8 @@ import androidx.appcompat.app.AppCompatActivity
 import com.example.uts.databinding.ActivityLoginBinding
 import com.example.uts.model.User
 import com.example.uts.utils.SharedPref
+import com.example.uts.utils.ToastType
+import com.example.uts.utils.showCustomToast
 
 class LoginActivity : AppCompatActivity() {
     private lateinit var b: ActivityLoginBinding
@@ -28,7 +30,7 @@ class LoginActivity : AppCompatActivity() {
             val pass = b.etPassword.text.toString().trim()
 
             if (username.isEmpty() || pass.isEmpty()) {
-                Toast.makeText(this, "Isi semua data", Toast.LENGTH_SHORT).show()
+               showCustomToast(this, "Isi semua data", ToastType.INFO)
             } else {
                 val prefs = getSharedPreferences("nutriscan_prefs", MODE_PRIVATE)
                 val savedUsername = prefs.getString("registered_user_username", null)
@@ -37,11 +39,11 @@ class LoginActivity : AppCompatActivity() {
 
                 if (username == savedUsername && pass == savedPassword) {
                     pref.saveUser(User(savedUsername ?: username, savedEmail ?: ""))
-                    Toast.makeText(this, "Login berhasil!", Toast.LENGTH_SHORT).show()
+                    showCustomToast(this,"Login berhasil", ToastType.SUCCESS)
                     startActivity(Intent(this, MainActivity::class.java))
                     finish()
                 } else {
-                    Toast.makeText(this, "Username atau password salah.", Toast.LENGTH_SHORT).show()
+                    showCustomToast(this, "Username atau password salah.", ToastType.ERROR)
                 }
             }
         }

@@ -28,6 +28,12 @@ class SharedPref(context: Context) {
             .apply()
     }
 
+    fun deleteAccount() {
+        prefs.edit()
+            .clear()
+            .apply()
+    }
+
     fun getHistoryList(): MutableList<Food> {
         val json = prefs.getString("history_list", null) ?: return mutableListOf()
         val type = object : TypeToken<MutableList<Food>>() {}.type

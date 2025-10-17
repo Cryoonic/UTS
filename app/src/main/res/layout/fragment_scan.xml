@@ -1,50 +1,77 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
+
     <LinearLayout
         android:orientation="vertical"
         android:padding="16dp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center">
+
         <ImageView
             android:id="@+id/ivPreview"
             android:layout_width="280dp"
             android:layout_height="280dp"
             android:scaleType="centerCrop"
-            android:background="#EEE"/>
+            android:background="#EEE" />
+
         <Button
             android:id="@+id/btnCapture"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Ambil Foto"
-            android:layout_marginTop="12dp"/>
-        <Button
-            android:id="@+id/btnProcess"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Proses (Dummy ML)"
-            android:layout_marginTop="8dp"
-            android:enabled="false"/>
+            android:layout_marginTop="16dp" />
+
         <ProgressBar
             android:id="@+id/progressBar"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:visibility="gone"
-            android:layout_marginTop="12dp"/>
-        <TextView
-            android:id="@+id/tvStatus"
+            android:layout_marginTop="16dp" />
+
+        <!-- 🔽 Container hasil prediksi -->
+        <LinearLayout
+            android:id="@+id/resultContainer"
+            android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text=""
-            android:layout_marginTop="8dp"/>
-        <Button
-            android:id="@+id/btnOpenCamera"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Open Camera"
-            android:layout_margin="16dp"/>
+            android:visibility="gone"
+            android:layout_marginTop="16dp">
+
+            <TextView
+                android:id="@+id/tvCalories"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Kalori: -"
+                android:textSize="16sp"
+                android:layout_marginTop="8dp" />
+
+            <TextView
+                android:id="@+id/tvCarbs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Karbohidrat: -"
+                android:textSize="16sp"
+                android:layout_marginTop="4dp" />
+
+            <TextView
+                android:id="@+id/tvProtein"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Protein: -"
+                android:textSize="16sp"
+                android:layout_marginTop="4dp" />
+
+            <TextView
+                android:id="@+id/tvFat"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Lemak: -"
+                android:textSize="16sp"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+
     </LinearLayout>
 </ScrollView>

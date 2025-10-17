@@ -11,6 +11,8 @@ import com.example.uts.LoginActivity
 import com.example.uts.databinding.FragmentProfileBinding
 import com.example.uts.model.User
 import com.example.uts.utils.SharedPref
+import com.example.uts.utils.ToastType
+import com.example.uts.utils.showCustomToast
 
 class ProfileFragment : Fragment() {
 
@@ -22,7 +24,7 @@ class ProfileFragment : Fragment() {
     private var daysActive = 5
     private var caloriesGoal = 2000
     private var proteinGoal = 50
-    private var waterGoal = 2.0 // in liters
+    private var waterGoal = 2.0
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -36,6 +38,7 @@ class ProfileFragment : Fragment() {
         setupStatsAndGoals()
         setupSettings()
         setupLogout()
+        setupDeleteAccount()
 
         return b.root
     }
@@ -63,7 +66,7 @@ class ProfileFragment : Fragment() {
             val password = b.etPassword.text.toString().trim()
 
             if (username.isEmpty() || email.isEmpty()) {
-                Toast.makeText(requireContext(), "Isi semua field", Toast.LENGTH_SHORT).show()
+                showCustomToast(requireContext(),"Isi semua field", ToastType.INFO)
                 return@setOnClickListener
             }
 
@@ -78,7 +81,7 @@ class ProfileFragment : Fragment() {
                 editor.apply()
             }
 
-            Toast.makeText(requireContext(), "Profil disimpan", Toast.LENGTH_SHORT).show()
+            showCustomToast(requireContext(), "Profil disimpan", ToastType.SUCCESS)
         }
     }
 
@@ -87,6 +90,22 @@ class ProfileFragment : Fragment() {
             pref.logout()
             startActivity(Intent(requireContext(), LoginActivity::class.java))
             requireActivity().finish()
+        }
+    }
+
+    private fun setupDeleteAccount() {
+        b.btnDeleteAccount.setOnClickListener {
+            androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle("Hapus Akun")
+                .setMessage("Apakah kamu yakin ingin menghapus akun ini? Semua data akan hilang permanen.")
+                .setPositiveButton("Ya") { _, _ ->
+                    pref.deleteAccount()
+                    showCustomToast(requireContext(), "Akun berhasil dihapus", ToastType.SUCCESS)
+                    startActivity(Intent(requireContext(), LoginActivity::class.java))
+                    requireActivity().finish()
+                }
+                .setNegativeButton("Batal", null)
+                .show()
         }
     }
 

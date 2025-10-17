@@ -7,6 +7,8 @@ import androidx.appcompat.app.AppCompatActivity
 import com.example.uts.databinding.ActivityRegisterBinding
 import com.example.uts.model.User
 import com.example.uts.utils.SharedPref
+import com.example.uts.utils.ToastType
+import com.example.uts.utils.showCustomToast
 
 class RegisterActivity : AppCompatActivity() {
     private lateinit var b: ActivityRegisterBinding
@@ -24,7 +26,7 @@ class RegisterActivity : AppCompatActivity() {
             val pass = b.etPassword.text.toString().trim()
 
             if (username.isEmpty() || email.isEmpty() || pass.isEmpty()) {
-                Toast.makeText(this, "Lengkapi semua data", Toast.LENGTH_SHORT).show()
+                showCustomToast(this,"Lengkapi semua data", ToastType.INFO)
             } else {
                 val editor = getSharedPreferences("nutriscan_prefs", MODE_PRIVATE).edit()
                 editor.putString("registered_user_username", username)
@@ -32,7 +34,7 @@ class RegisterActivity : AppCompatActivity() {
                 editor.putString("registered_user_password", pass)
                 editor.apply()
 
-                Toast.makeText(this, "Registrasi berhasil! Silakan login.", Toast.LENGTH_SHORT).show()
+                showCustomToast(this, "Registrasi berhasil! Silakan login.", ToastType.SUCCESS)
                 startActivity(Intent(this, LoginActivity::class.java))
                 finish()
             }
