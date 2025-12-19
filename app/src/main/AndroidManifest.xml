@@ -18,10 +18,10 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/Theme.NutriScan.Light">
         <activity android:name=".FoodDetailActivity" />
-        <activity android:name=".ScanActivity" />
         <activity android:name=".RegisterActivity" />
         <activity android:name=".LoginActivity" />
         <activity android:name=".MainActivity" />
+        <activity android:name=".ProfileSetupActivity" />
         <activity android:name=".SplashActivity"
             android:exported="true">
             <intent-filter>

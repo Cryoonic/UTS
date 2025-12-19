@@ -8,45 +8,45 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.uts.R
 import com.example.uts.model.Food
+import com.example.uts.model.FoodHistory
 
 class FoodGridAdapter(
-    private var foodList: List<Food>,   // Daftar data makanan
-    private val onClick: (Food) -> Unit // Aksi saat item diklik
+    private var foodList: List<FoodHistory>,
+    private val onClick: (FoodHistory) -> Unit
 ) : RecyclerView.Adapter<FoodGridAdapter.FoodViewHolder>() {
 
-    // ViewHolder menyimpan referensi ke elemen tampilan setiap item grid
     inner class FoodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView){
         val tvFoodName: TextView = itemView.findViewById(R.id.tvFoodName)
-        val imgFood: ImageView = itemView.findViewById(R.id.imgFood)
-        val btnMore: ImageView = itemView.findViewById(R.id.btnMore)
+        val tvCalories: TextView = itemView.findViewById(R.id.tvCalories)
+        val tvProtein: TextView = itemView.findViewById(R.id.tvProtein)
+        val tvCarbs: TextView = itemView.findViewById(R.id.tvCarbs)
+        val tvFat: TextView = itemView.findViewById(R.id.tvFat)
+        val tvFiber: TextView = itemView.findViewById(R.id.tvFiber)
     }
 
-    // Membuat tampilan baru (inflate layout) untuk item grid
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FoodViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_food_grid, parent, false)
         return FoodViewHolder(view)
     }
 
-    // Mengikat data makanan ke setiap elemen tampilan di grid
     override fun onBindViewHolder(holder: FoodViewHolder, position: Int) {
         val food = foodList[position]
-        holder.tvFoodName.text = food.name
-        holder.imgFood.setImageResource(food.imageResId)
 
+        holder.tvFoodName.text = food.foodname
+        holder.tvCalories.text = "Calories: ${food.calories} kcal"
+        holder.tvCarbs.text = "Carbs: ${"%.1f".format(food.carbs)} g"
+        holder.tvProtein.text = "Protein: ${"%.1f".format(food.protein)} g"
+        holder.tvFat.text = "Fat: ${"%.1f".format(food.fat)} g"
+        holder.tvFiber.text = "Fiber: ${"%.1f".format(food.fiber)} g"
 
-        // Klik pada tombol atau item akan memicu aksi yang sama
-        holder.btnMore.setOnClickListener { onClick(food) }
         holder.itemView.setOnClickListener { onClick(food) }
     }
 
-    // Memperbarui data dan merefresh RecyclerView
-    fun updateList(newList: List<Food>){
+    fun updateList(newList: List<FoodHistory>){
         foodList = newList
         notifyDataSetChanged()
     }
 
-    // Mengembalikan jumlah total item dalam grid
     override fun getItemCount(): Int = foodList.size
-
 }
