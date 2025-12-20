@@ -10,6 +10,7 @@ data class User(
     val username: String,
     val email: String,
     val passwordHash: String,
+    val profileImageUri: String? = null,
     val gender: String? = null,
     val age: Int? = null,
     val height: Float? = null,

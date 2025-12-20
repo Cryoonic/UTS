@@ -375,7 +375,7 @@ class HomeFragment : Fragment() {
         )
 
         AlertDialog.Builder(requireContext())
-            .setTitle("Add Food")
+            .setTitle("")
             .setView(dialogView)
             .setPositiveButton("Save") { _, _ ->
                 val foodName = etFood.text.toString()

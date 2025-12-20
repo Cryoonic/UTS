@@ -35,4 +35,18 @@ interface FoodHistoryDao {
         mealType: String,
         selectedDate: Long
     ): Int
+
+    @Query("""
+    SELECT * FROM food_history
+    WHERE username = :username
+    AND timestamp BETWEEN :start AND :end
+    ORDER BY timestamp DESC
+""")
+    fun getByDate(
+        username: String,
+        start: Long,
+        end: Long
+    ): List<FoodHistory>
+
+
 }
