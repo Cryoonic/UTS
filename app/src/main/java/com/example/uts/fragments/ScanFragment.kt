@@ -8,137 +8,187 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
-import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.animation.AlphaAnimation
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import com.example.uts.databinding.FragmentScanBinding
-import kotlin.random.Random
+import com.example.uts.viewmodel.api.MLApi
+import java.io.File
+import java.io.FileOutputStream
+
 
 class ScanFragment : Fragment() {
 
     private var _binding: FragmentScanBinding? = null
-    private val b get() = _binding!!
+    private val binding get() = _binding!!
 
-    private val permissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            openCamera()
-        } else {
-            showDeniedDialog()
+    private val api = MLApi()
+    private var currentImageFile: File? = null
+    private var photoUri: Uri? = null
+
+    // Camera launcher
+    private val takePicture = registerForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            photoUri?.let { uri ->
+                binding.ivFoodPreview.setImageURI(uri)
+                binding.btnAnalyze.isEnabled = true
+                currentImageFile = File(uri.path!!)
+            }
         }
     }
 
-    private val cameraLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val bitmap = result.data?.extras?.get("data") as? Bitmap
-            b.ivPreview.setImageBitmap(bitmap)
-            showDummyPrediction()
+    // Gallery launcher
+    private val pickImage = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            binding.ivFoodPreview.setImageURI(it)
+            binding.btnAnalyze.isEnabled = true
+            currentImageFile = uriToFile(it)
         }
     }
+
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
+        inflater: LayoutInflater,
+        container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentScanBinding.inflate(inflater, container, false)
-
-        b.btnCapture.setOnClickListener {
-            checkCameraPermissionAndOpen()
-        }
-
-        return b.root
+        return binding.root
     }
 
-    private fun checkCameraPermissionAndOpen() {
-        when {
-            ContextCompat.checkSelfPermission(
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        // Check API health
+        checkApiConnection()
+
+        // Setup button listeners
+        binding.btnCamera.setOnClickListener { requestCamera() }
+        binding.btnGallery.setOnClickListener { openGallery() }
+        binding.btnAnalyze.setOnClickListener { analyzeFood() }
+    }
+
+    private fun checkApiConnection() {
+        api.checkHealth { isHealthy ->
+            activity?.runOnUiThread {
+                if (isHealthy) {
+                    Toast.makeText(context, "✅ API Connected", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "❌ API Error", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun requestCamera() {
+        if (ContextCompat.checkSelfPermission(
                 requireContext(),
                 Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED -> {
-                openCamera()
-            }
-
-            shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) -> {
-                showPermissionWarning()
-            }
-
-            else -> {
-                permissionLauncher.launch(Manifest.permission.CAMERA)
-            }
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            openCamera()
+        } else {
+            ActivityCompat.requestPermissions(
+                requireActivity(),
+                arrayOf(Manifest.permission.CAMERA),
+                CAMERA_PERMISSION_CODE
+            )
         }
     }
 
     private fun openCamera() {
-        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-        cameraLauncher.launch(intent)
+        val photoFile = File.createTempFile(
+            "IMG_",
+            ".jpg",
+            requireContext().cacheDir
+        )
+
+        photoUri = FileProvider.getUriForFile(
+            requireContext(),
+            "${requireContext().packageName}.provider",
+            photoFile
+        )
+
+        takePicture.launch(photoUri)
     }
 
-    private fun showPermissionWarning() {
-        AlertDialog.Builder(requireContext())
-            .setTitle("Izin Kamera Diperlukan")
-            .setMessage("Aplikasi memerlukan akses kamera untuk mengambil foto makanan. Izinkan sekarang?")
-            .setPositiveButton("Izinkan") { _, _ ->
-                permissionLauncher.launch(Manifest.permission.CAMERA)
+
+    private fun openGallery() {
+        pickImage.launch("image/*")
+    }
+
+    private fun analyzeFood() {
+        currentImageFile?.let { file ->
+            binding.progressBar.visibility = View.VISIBLE
+            binding.cardResult.visibility = View.GONE
+            binding.btnAnalyze.isEnabled = false
+
+            api.predictFood(file) { result ->
+                activity?.runOnUiThread {
+                    binding.progressBar.visibility = View.GONE
+                    binding.btnAnalyze.isEnabled = true
+
+                    if (result?.success == true) {
+                        displayResult(result)
+                    } else {
+                        Toast.makeText(
+                            context,
+                            "Error: ${result?.error ?: "Unknown error"}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
             }
-            .setNegativeButton("Batal", null)
-            .show()
+        } ?: run {
+            Toast.makeText(context, "Please select an image first", Toast.LENGTH_SHORT).show()
+        }
     }
 
-    private fun showDeniedDialog() {
-        AlertDialog.Builder(requireContext())
-            .setTitle("Izin Ditolak")
-            .setMessage("Kamera tidak dapat digunakan tanpa izin. Aktifkan izin di pengaturan aplikasi.")
-            .setPositiveButton("Buka Pengaturan") { _, _ ->
-                val intent = Intent(
-                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                    Uri.fromParts("package", requireContext().packageName, null)
-                )
-                startActivity(intent)
-            }
-            .setNegativeButton("Batal", null)
-            .show()
+    private fun displayResult(result: MLApi.PredictionResult) {
+        binding.cardResult.visibility = View.VISIBLE
+
+        binding.tvFoodName.text = result.prediction?.replaceFirstChar { it.uppercase() } ?: "Unknown"
+
+        result.confidence?.let {
+            binding.tvConfidence.text = "Confidence: ${(it * 100).toInt()}%"
+        } ?: run {
+            binding.tvConfidence.text = "Confidence: N/A"
+        }
+
+        result.nutrition?.let { nutrition ->
+            binding.tvCalories.text = "Calories: ${nutrition.calories} kcal"
+            binding.tvProtein.text = "Protein: ${nutrition.protein}g"
+            binding.tvCarbs.text = "Carbs: ${nutrition.carbs}g"
+            binding.tvFat.text = "Fat: ${nutrition.fat}g"
+            binding.tvServing.text = "Serving: ${nutrition.serving_size}"
+        }
     }
-
-    private fun showDummyPrediction() {
-        val calories = Random.nextInt(200, 800)
-        val carbs = Random.nextInt(20, 100)
-        val protein = Random.nextInt(10, 50)
-        val fat = Random.nextInt(5, 30)
-
-        b.progressBar.visibility = View.VISIBLE
-        b.resultContainer.visibility = View.GONE
-
-        b.progressBar.postDelayed({
-            b.progressBar.visibility = View.GONE
-            b.resultContainer.visibility = View.VISIBLE
-
-            b.tvCalories.text = "Kalori: $calories kcal"
-            b.tvCarbs.text = "Karbohidrat: $carbs g"
-            b.tvProtein.text = "Protein: $protein g"
-            b.tvFat.text = "Lemak: $fat g"
-
-            fadeIn(b.resultContainer)
-        }, 1200)
-    }
-
-    private fun fadeIn(view: View) {
-        val fade = AlphaAnimation(0f, 1f)
-        fade.duration = 700
-        view.startAnimation(fade)
-        view.alpha = 1f
+    private fun uriToFile(uri: Uri): File {
+        val bitmap = MediaStore.Images.Media.getBitmap(requireContext().contentResolver, uri)
+        val file = File.createTempFile("IMG_", ".jpg", requireContext().cacheDir)
+        val outputStream = FileOutputStream(file)
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
+        outputStream.flush()
+        outputStream.close()
+        return file
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    companion object {
+        private const val CAMERA_PERMISSION_CODE = 100
     }
 }

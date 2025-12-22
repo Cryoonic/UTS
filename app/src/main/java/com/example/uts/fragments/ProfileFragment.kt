@@ -37,7 +37,7 @@ import java.io.FileOutputStream
 class ProfileFragment : Fragment() {
 
     private var _binding: FragmentProfileBinding? = null
-    private val binding get() = _binding!!
+    private val binding get() = _binding
     private lateinit var pref: SharedPref
     private var currentUser: User? = null
     private lateinit var firestore: FirebaseFirestore
@@ -80,18 +80,18 @@ class ProfileFragment : Fragment() {
         setupLogout()
         setupDeleteAccount()
 
-        binding.imgProfile.setOnClickListener {
+        binding!!.imgProfile.setOnClickListener {
             showImagePickerDialog()
         }
 
-        return binding.root
+        return binding!!.root
     }
 
     private fun loadUserData() {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
 
         firestore.collection("users")
-            .document(uid) // ✅ UID
+            .document(uid)
             .get()
             .addOnSuccessListener { document ->
 
@@ -99,9 +99,9 @@ class ProfileFragment : Fragment() {
 
                 currentUser = document.toObject(User::class.java)
 
-                binding.tvUsername.text = currentUser?.username ?: "Guest"
-                binding.etUsername.setText(currentUser?.username ?: "")
-                binding.etEmail.setText(currentUser?.email ?: "")
+                binding!!.tvUsername.text = currentUser?.username ?: "Guest"
+                binding!!.etUsername.setText(currentUser?.username ?: "")
+                binding!!.etEmail.setText(currentUser?.email ?: "")
 
                 val photoUrl = document.getString("profileImageUrl")
                 if (!photoUrl.isNullOrEmpty()) {
@@ -109,7 +109,7 @@ class ProfileFragment : Fragment() {
                         .load(photoUrl)
                         .circleCrop()
                         .placeholder(R.drawable.ic_profile)
-                        .into(binding.imgProfile)
+                        .into(binding!!.imgProfile)
                 }
             }
             .addOnFailureListener {
@@ -140,7 +140,7 @@ class ProfileFragment : Fragment() {
         Glide.with(this)
             .load(uri)
             .circleCrop()
-            .into(binding.imgProfile)
+            .into(binding!!.imgProfile)
 
         val imageRef = storage.reference
             .child("profile_images/$uid.jpg") // ✅ UID
@@ -184,13 +184,13 @@ class ProfileFragment : Fragment() {
 
 
     private fun setupSettings() {
-        binding.btnSaveSettings.setOnClickListener {
+        binding!!.btnSaveSettings.setOnClickListener {
 
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return@setOnClickListener
 
             val updateData = hashMapOf<String, Any>(
-                "username" to binding.etUsername.text.toString().trim(),
-                "email" to binding.etEmail.text.toString().trim()
+                "username" to binding!!.etUsername.text.toString().trim(),
+                "email" to binding!!.etEmail.text.toString().trim()
             )
 
             firestore.collection("users")
@@ -204,7 +204,7 @@ class ProfileFragment : Fragment() {
 
 
     private fun setupLogout() {
-        binding.btnLogout.setOnClickListener {
+        binding!!.btnLogout.setOnClickListener {
             pref.logout()
             startActivity(Intent(requireContext(), LoginActivity::class.java))
             requireActivity().finish()
@@ -212,7 +212,7 @@ class ProfileFragment : Fragment() {
     }
 
     private fun setupDeleteAccount() {
-        binding.btnDeleteAccount.setOnClickListener {
+        binding!!.btnDeleteAccount.setOnClickListener {
 
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return@setOnClickListener
 
@@ -237,7 +237,7 @@ class ProfileFragment : Fragment() {
                 }
         }
     }
-    
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
