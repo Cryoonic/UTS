@@ -9,11 +9,11 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.result.ActivityResult
-import androidx.activity.result.ActivityResultLauncher
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.example.uts.LoginActivity
 import com.example.uts.databinding.FragmentProfileBinding
@@ -23,7 +23,9 @@ import com.example.uts.utils.SharedPref
 import com.example.uts.utils.ToastType
 import com.example.uts.utils.showCustomToast
 import com.example.uts.R
-import com.example.uts.database.AppDatabase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -35,10 +37,12 @@ import java.io.FileOutputStream
 class ProfileFragment : Fragment() {
 
     private var _binding: FragmentProfileBinding? = null
-    private val b get() = _binding!!
+    private val binding get() = _binding!!
     private lateinit var pref: SharedPref
-    private lateinit var db: AppDatabase
     private var currentUser: User? = null
+    private lateinit var firestore: FirebaseFirestore
+    private lateinit var storage: FirebaseStorage
+
 
     private val imagePickerLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()){
@@ -66,42 +70,55 @@ class ProfileFragment : Fragment() {
     ): View {
         _binding = FragmentProfileBinding.inflate(inflater, container, false)
         pref = SharedPref(requireContext())
-        db = AppDatabase.getDatabase(requireContext())
+
+
+        firestore = FirebaseFirestore.getInstance()
+        storage = FirebaseStorage.getInstance()
 
         loadUserData()
         setupSettings()
         setupLogout()
         setupDeleteAccount()
-        b.imgProfile.setOnClickListener {
+
+        binding.imgProfile.setOnClickListener {
             showImagePickerDialog()
         }
 
-        return b.root
+        return binding.root
     }
 
     private fun loadUserData() {
-        val username = pref.getSession() ?: return
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
 
-        CoroutineScope(Dispatchers.IO).launch {
-            val user = db.userDao().getUser(username)
-            currentUser = user
+        firestore.collection("users")
+            .document(uid) // ✅ UID
+            .get()
+            .addOnSuccessListener { document ->
 
-            withContext(Dispatchers.Main){
-                b.tvUsername.text = user?.username ?: "Guest"
-                b.etUsername.setText(user?.username ?: "")
-                b.etEmail.setText(user?.email ?: "")
+                if (!document.exists()) return@addOnSuccessListener
 
-                if (!user?.profileImageUri.isNullOrEmpty()){
-                    Glide.with(this@ProfileFragment)
-                        .load(user?.profileImageUri)
+                currentUser = document.toObject(User::class.java)
+
+                binding.tvUsername.text = currentUser?.username ?: "Guest"
+                binding.etUsername.setText(currentUser?.username ?: "")
+                binding.etEmail.setText(currentUser?.email ?: "")
+
+                val photoUrl = document.getString("profileImageUrl")
+                if (!photoUrl.isNullOrEmpty()) {
+                    Glide.with(this)
+                        .load(photoUrl)
                         .circleCrop()
                         .placeholder(R.drawable.ic_profile)
-                        .error(R.drawable.ic_profile)
-                        .into(b.imgProfile)
+                        .into(binding.imgProfile)
                 }
             }
-        }
+            .addOnFailureListener {
+                Toast.makeText(requireContext(), "Failed load profile", Toast.LENGTH_SHORT).show()
+            }
     }
+
+
+
 
     private fun showImagePickerDialog(){
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
@@ -117,17 +134,26 @@ class ProfileFragment : Fragment() {
     private fun openCamera(){
         cameraLauncher.launch(null)
     }
-    private fun saveProfileImage(uri: Uri){
-        val username = pref.getSession() ?: return
+    private fun saveProfileImage(uri: Uri) {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+
         Glide.with(this)
             .load(uri)
             .circleCrop()
-            .into(b.imgProfile)
-        CoroutineScope(Dispatchers.IO).launch {
-            db.userDao().updateProfileImage(username, uri.toString())
-        }
-    }
+            .into(binding.imgProfile)
 
+        val imageRef = storage.reference
+            .child("profile_images/$uid.jpg") // ✅ UID
+
+        imageRef.putFile(uri)
+            .addOnSuccessListener {
+                imageRef.downloadUrl.addOnSuccessListener { downloadUrl ->
+                    firestore.collection("users")
+                        .document(uid)
+                        .update("profileImageUrl", downloadUrl.toString())
+                }
+            }
+    }
 
 
     private val cropLauncher =
@@ -158,41 +184,27 @@ class ProfileFragment : Fragment() {
 
 
     private fun setupSettings() {
-        b.btnSaveSettings.setOnClickListener {
+        binding.btnSaveSettings.setOnClickListener {
 
-            val newUsername = b.etUsername.text.toString().trim()
-            val newEmail   = b.etEmail.text.toString().trim()
-            val newPassword = b.etPassword.text.toString().trim()
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return@setOnClickListener
 
-            if (newUsername.isEmpty() || newEmail.isEmpty()) {
-                showCustomToast(requireContext(), "Isi semua field", ToastType.INFO)
-                return@setOnClickListener
-            }
-
-            val oldUser = currentUser ?: return@setOnClickListener
-
-            val updatedUser = oldUser.copy(
-                username = newUsername,
-                email = newEmail,
-                passwordHash = if (newPassword.isNotEmpty())
-                    HashUtil.sha256(newPassword)
-                else
-                    oldUser.passwordHash
+            val updateData = hashMapOf<String, Any>(
+                "username" to binding.etUsername.text.toString().trim(),
+                "email" to binding.etEmail.text.toString().trim()
             )
 
-            CoroutineScope(Dispatchers.IO).launch {
-                db.userDao().updateUser(updatedUser)
-
-                requireActivity().runOnUiThread {
-                    pref.saveSession(newUsername)
+            firestore.collection("users")
+                .document(uid)
+                .update(updateData)
+                .addOnSuccessListener {
                     showCustomToast(requireContext(), "Profil disimpan", ToastType.SUCCESS)
                 }
-            }
         }
     }
 
+
     private fun setupLogout() {
-        b.btnLogout.setOnClickListener {
+        binding.btnLogout.setOnClickListener {
             pref.logout()
             startActivity(Intent(requireContext(), LoginActivity::class.java))
             requireActivity().finish()
@@ -200,31 +212,32 @@ class ProfileFragment : Fragment() {
     }
 
     private fun setupDeleteAccount() {
-        b.btnDeleteAccount.setOnClickListener {
-            androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setTitle("Hapus Akun")
-                .setMessage("Yakin ingin menghapus akun ini?")
-                .setPositiveButton("Ya") { _, _ ->
+        binding.btnDeleteAccount.setOnClickListener {
 
-                    val username = pref.getSession() ?: return@setPositiveButton
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return@setOnClickListener
 
-                    CoroutineScope(Dispatchers.IO).launch {
-                        db.userDao().deleteUser(username)
+            firestore.collection("users")
+                .document(uid)
+                .get()
+                .addOnSuccessListener { snapshot ->
 
-                        requireActivity().runOnUiThread {
+                    snapshot.getString("profileImageUrl")?.let {
+                        storage.getReferenceFromUrl(it).delete()
+                    }
+
+                    firestore.collection("users")
+                        .document(uid)
+                        .delete()
+                        .addOnSuccessListener {
+                            FirebaseAuth.getInstance().currentUser?.delete()
                             pref.logout()
-                            showCustomToast(requireContext(), "Akun berhasil dihapus", ToastType.SUCCESS)
                             startActivity(Intent(requireContext(), LoginActivity::class.java))
                             requireActivity().finish()
                         }
-                    }
                 }
-                .setNegativeButton("Batal", null)
-                .show()
         }
     }
-
-
+    
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

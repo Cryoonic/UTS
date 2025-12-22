@@ -11,6 +11,7 @@
         android:id="@+id/splashBg"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="@drawable/splash_overlay"
         android:scaleType="centerCrop"
         android:alpha="0.5"/>
    <LinearLayout

@@ -19,14 +19,16 @@ import com.example.uts.adapters.FoodGridAdapter
 import com.example.uts.databinding.FragmentHomeBinding
 import com.example.uts.model.Food
 import com.example.uts.R
-import com.example.uts.database.AppDatabase
 import com.example.uts.model.FoodHistory
 import com.example.uts.model.User
 import com.example.uts.utils.SharedPref
 import com.google.android.material.datepicker.MaterialDatePicker
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.*
 
@@ -107,41 +109,72 @@ class HomeFragment : Fragment() {
     // -------------------------------
     //  Progrees bar
     // -------------------------------
-    private fun loadDailySummary(selectedDate: Long){
-        val username = pref.getSession() ?: return
+    private fun loadDailySummary(selectedDate: Long) {
 
-        lifecycleScope.launch(Dispatchers.IO){
-            val db = AppDatabase.getDatabase(requireContext())
-            val user = db.userDao().getUser(username)
-            var history = db.foodHistoryDao().getByDate(username, selectedDate)
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val firestore = FirebaseFirestore.getInstance()
 
-            if (activeFilter != "all") {
-                history = history.filter { it.mealType == activeFilter }
-            }
+        val startOfDay = getStartOfDay(selectedDate)
+        val endOfDay = getEndOfDay(selectedDate)
 
-            val totalCalories = history.sumOf { it.calories }
-            val totalCarbs = history.sumOf { it.carbs }
-            val totalProtein = history.sumOf { it.protein }
-            val totalFat = history.sumOf { it.fat }
-            val totalFiber = history.sumOf { it.fiber }
+        lifecycleScope.launch {
+            try {
+                // 🔹 ambil user pakai UID
+                val userSnapshot = firestore.collection("users")
+                    .document(uid)
+                    .get()
+                    .await()
 
-            val breakfastCal = history.filter { it.mealType == "breakfast" }.sumOf { it.calories }
-            val lunchCal = history.filter { it.mealType == "lunch" }.sumOf { it.calories }
-            val dinnerCal = history.filter { it.mealType == "dinner"}.sumOf { it.calories }
-            val snackCal = history.filter { it.mealType == "snack" }.sumOf { it.calories }
+                val user = userSnapshot.toObject(User::class.java)?: return@launch
 
-            if (user == null) return@launch
-            val tdee = calculateTDEE(user)
+                val snapshot = firestore.collection("food_history")
+                    .whereEqualTo("uid", uid)
+                    .whereGreaterThanOrEqualTo("timestamp", startOfDay)
+                    .whereLessThanOrEqualTo("timestamp", endOfDay)
+                    .get()
+                    .await()
 
 
-            withContext(Dispatchers.Main){
-                renderSummaryUI(
-                    breakfastCal, lunchCal, dinnerCal, snackCal,
-                    totalCalories,totalCarbs, totalProtein, totalFat, totalFiber, tdee
-                )
+                var history = snapshot.toObjects(FoodHistory::class.java)
+
+                if (activeFilter != "all") {
+                    history = history.filter { it.mealType == activeFilter }
+                }
+
+                val totalCalories = history.sumOf { it.calories }
+                val totalCarbs = history.sumOf { it.carbs }
+                val totalProtein = history.sumOf { it.protein }
+                val totalFat = history.sumOf { it.fat }
+                val totalFiber = history.sumOf { it.fiber }
+
+                val breakfastCal = history.filter { it.mealType == "breakfast" }.sumOf { it.calories }
+                val lunchCal = history.filter { it.mealType == "lunch" }.sumOf { it.calories }
+                val dinnerCal = history.filter { it.mealType == "dinner" }.sumOf { it.calories }
+                val snackCal = history.filter { it.mealType == "snack" }.sumOf { it.calories }
+
+                val tdee = calculateTDEE(user)
+
+                withContext(Dispatchers.Main) {
+                    renderSummaryUI(
+                        breakfastCal,
+                        lunchCal,
+                        dinnerCal,
+                        snackCal,
+                        totalCalories,
+                        totalCarbs,
+                        totalProtein,
+                        totalFat,
+                        totalFiber,
+                        tdee
+                    )
+                }
+
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
+
 
     private fun calculateTDEE(user: User): Int{
         val bmr = if (user.gender == "male"){
@@ -343,22 +376,27 @@ class HomeFragment : Fragment() {
     }
 
     private fun loadHistoryFoodByDate(selectedDate: Long) {
-        val username = pref.getSession() ?: return
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
 
-        CoroutineScope(Dispatchers.IO).launch {
-            val db = AppDatabase.getDatabase(requireContext())
-            var history = db.foodHistoryDao().getByDate(username, selectedDate)
+        val start = getStartOfDay(selectedDate)
+        val end = getEndOfDay(selectedDate)
 
-            if (activeFilter != "all"){
-                history = history.filter { it.mealType == activeFilter }
-            }
+        lifecycleScope.launch {
+            val snapshot = FirebaseFirestore.getInstance()
+                .collection("food_history")
+                .whereEqualTo("uid", uid)
+                .whereGreaterThanOrEqualTo("timestamp", start)
+                .whereLessThanOrEqualTo("timestamp", end)
+                .get()
+                .await()
 
+            val history = snapshot.toObjects(FoodHistory::class.java)
 
-            withContext(Dispatchers.Main) {
-                historyAdapter.updateList(history)
-            }
+            historyAdapter.updateList(history)
         }
     }
+
+
     private fun showAddFoodDialog() {
         val dialogView = LayoutInflater.from(requireContext())
             .inflate(R.layout.dialog_add_food, null)
@@ -391,59 +429,83 @@ class HomeFragment : Fragment() {
     }
 
 
+
     private fun fetchFoodFromApi(foodName: String, gram: Double, mealType: String) {
 
         lifecycleScope.launch {
             try {
+                // 1) Panggil API
                 val response = ApiClient.api.searchFood(
                     query = foodName,
                     apiKey = "djVoNuFPiKOBfeokRC4KXxJ65QfPjNz2DvydbqJq"
                 )
 
-                val food = response.foods.first()
+                val food = response.foods.firstOrNull()
+                    ?: throw Exception("Food not found")
 
-                var calories = 0.0
-                var carbs = 0.0
-                var protein = 0.0
-                var fat = 0.0
-                var fiber = 0.0
+                // 2) Ambil nutrisi per 100g (pastikan nama nutrient sesuai API)
+                var caloriesPer100 = 0.0
+                var carbsPer100 = 0.0
+                var proteinPer100 = 0.0
+                var fatPer100 = 0.0
+                var fiberPer100 = 0.0
 
                 food.foodNutrients.forEach {
                     when (it.nutrientName.lowercase()) {
-                        "energy" -> calories = it.value
-                        "carbohydrate, by difference" -> carbs = it.value
-                        "protein" -> protein = it.value
-                        "total lipid (fat)" -> fat = it.value
-                        "fiber, total dietary" -> fiber = it.value
+                        "energy" -> caloriesPer100 = it.value
+                        "carbohydrate, by difference" -> carbsPer100 = it.value
+                        "protein" -> proteinPer100 = it.value
+                        "total lipid (fat)" -> fatPer100 = it.value
+                        "fiber, total dietary" -> fiberPer100 = it.value
                     }
                 }
 
-                val multiplier = gram / 100
+                // 3) Hitung sesuai gram input user
+                val multiplier = gram / 100.0
+                val calories = (caloriesPer100 * multiplier).toInt()
+                val carbs = carbsPer100 * multiplier
+                val protein = proteinPer100 * multiplier
+                val fat = fatPer100 * multiplier
+                val fiber = fiberPer100 * multiplier
 
-                val history = FoodHistory(
-                    username = pref.getSession()!!,
-                    mealType = mealType,
-                    calories = (calories * multiplier).toInt(),
-                    carbs = carbs * multiplier,
-                    protein = protein * multiplier,
-                    fat = fat * multiplier,
-                    fiber = fiber * multiplier,
-                    foodname = foodName,
-                    timestamp = normalizeDate(System.currentTimeMillis())
+                val uid = FirebaseAuth.getInstance().currentUser?.uid
+                    ?: throw Exception("Not logged in")
+
+                val doc = hashMapOf(
+                    "uid" to uid,
+                    "foodname" to foodName,
+                    "mealType" to mealType,
+                    "calories" to calories,
+                    "carbs" to carbs,
+                    "protein" to protein,
+                    "fat" to fat,
+                    "fiber" to fiber,
+                    "timestamp" to normalizeDate(System.currentTimeMillis())
                 )
 
-                val db = AppDatabase.getDatabase(requireContext())
-                db.foodHistoryDao().insert(history)
+                FirebaseFirestore.getInstance()
+                    .collection("food_history")
+                    .add(doc)
+                    .await()
 
+                // 7) Refresh UI pada date aktif (pastikan activeDate sudah di-normalize)
                 loadDailySummary(activeDate)
                 loadHistoryFoodByDate(activeDate)
 
+                // 8) Feedback ke user (di main thread)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(requireContext(), "Food saved", Toast.LENGTH_SHORT).show()
+                }
+
             } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Food not found", Toast.LENGTH_SHORT).show()
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(requireContext(), "Food not found or failed to save", Toast.LENGTH_SHORT).show()
+                }
             }
         }
-
     }
+
     private fun animateCaloriesProgress(targetProgress: Int) {
         val animator = android.animation.ValueAnimator.ofInt(
             binding.progressCalories.progress,
@@ -466,6 +528,27 @@ class HomeFragment : Fragment() {
         }
         animator.start()
     }
+
+    private fun getStartOfDay(time: Long): Long {
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = time
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
+    }
+
+    private fun getEndOfDay(time: Long): Long {
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = time
+        cal.set(Calendar.HOUR_OF_DAY, 23)
+        cal.set(Calendar.MINUTE, 59)
+        cal.set(Calendar.SECOND, 59)
+        cal.set(Calendar.MILLISECOND, 999)
+        return cal.timeInMillis
+    }
+
 
 
 
